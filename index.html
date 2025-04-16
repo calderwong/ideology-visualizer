@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Political Ideology Visualizer v2</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allow clicks through to canvas by default */
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Title and Subtitle Styles */
+        #title-container {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none; /* Don't block clicks */
+            z-index: 5; /* Ensure it's above panels if needed, but below modal */
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+        }
+        #main-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+        #main-subtitle {
+            font-size: 0.9em;
+            color: #cccccc;
+            max-width: 700px; /* Limit width */
+            margin: 0 auto; /* Center if max-width applies */
+            line-height: 1.4;
+        }
+
+        .ui-panel {
+            background: rgba(40, 40, 40, 0.85);
+            border: 1px solid rgba(100, 100, 100, 0.5);
+            border-radius: 6px;
+            padding: 10px 15px;
+            margin: 10px;
+            pointer-events: auto; /* Enable interaction on panels */
+            font-size: 0.85em;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            max-height: 90vh; /* Prevent panels from becoming too tall */
+            overflow-y: auto; /* Allow scrolling within panels if needed */
+        }
+
+        .ui-panel h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #555;
+            padding-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .ui-panel label {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .ui-panel input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .ui-panel input[type="checkbox"] {
+            margin-right: 5px;
+        }
+
+        .ui-panel button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.9em;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 5px;
+            margin-right: 5px;
+            transition: background-color 0.2s ease;
+        }
+         .ui-panel button:hover {
+             background-color: #45a049;
+         }
+         .ui-panel button.secondary {
+             background-color: #008CBA;
+         }
+         .ui-panel button.secondary:hover {
+             background-color: #007ba7;
+         }
+         .ui-panel button.danger {
+             background-color: #f44336;
+         }
+         .ui-panel button.danger:hover {
+             background-color: #da190b;
+         }
+
+
+        #timeline-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: calc(100% - 40px); /* Full width minus margins */
+            display: flex;
+            align-items: center;
+            padding: 15px;
+        }
+         #timelineSlider { flex-grow: 1; margin: 0 15px;}
+         #currentYearLabel { font-weight: bold; min-width: 40px; text-align: center;}
+
+        #info-panels {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            padding-top: 85px; /* Push panels below title+subtitle */
+        }
+         #event-summary-panel { width: 280px; max-height: 150px; overflow-y: auto;}
+         #filter-panel { width: 200px; }
+         #filter-panel div { margin-bottom: 5px; }
+
+        #controls-panels {
+             position: absolute;
+             top: 0;
+             right: 0;
+             display: flex;
+             flex-direction: column;
+             padding-top: 85px; /* Push panels below title+subtitle */
+        }
+         #user-input-panel { width: 250px; }
+         #user-input-panel .slider-group { margin-bottom: 10px;}
+         #user-input-panel .slider-label { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 3px;}
+         #user-input-panel .slider-value { font-weight: bold;}
+
+         #camera-panel { width: 150px; }
+         #camera-panel button { display: block; width: 100%; margin-bottom: 5px;}
+
+        #disclaimer-panel {
+            position: absolute;
+            bottom: 80px; /* Adjust if timeline panel height changes */
+            right: 0;
+            width: 220px;
+            font-size: 0.75em;
+            line-height: 1.3;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        #tooltip {
+            position: absolute;
+            display: none;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            pointer-events: none; /* Tooltip shouldn't block mouse */
+            white-space: nowrap;
+            z-index: 10;
+            line-height: 1.4;
+        }
+
+        #modal {
+            position: fixed;
+            display: none; /* Hidden by default */
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 500px;
+            background-color: #333;
+            border: 1px solid #666;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            z-index: 100;
+            pointer-events: auto;
+        }
+        #modal-content {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        #modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 16px;
+            line-height: 25px;
+            text-align: center;
+            cursor: pointer;
+        }
+         #modal h3 { margin-top: 0; color: #eee;}
+         #modal p { margin: 10px 0; line-height: 1.5; color: #ddd;}
+         #modal strong { color: #fff; }
+         #modal a { color: #64b5f6; text-decoration: none; }
+         #modal a:hover { text-decoration: underline; }
+         #modal hr { border: 0; border-top: 1px solid #555; margin: 15px 0;}
+
+        /* Style for dimmed objects on hover */
+        .dimmed { opacity: 0.15 !important; }
+
+    </style>
+    <!-- Load Three.js -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="ui-overlay">
+         <!-- Title container -->
+         <div id="title-container">
+              <h1 id="main-title">Political Ideology Visualizer</h1>
+              <p id="main-subtitle">
+                  An interactive 3D representation of estimated national political ideologies over time (1950-2025).
+                  Positions are based on a simplified model: X-axis (Communist to Fascist), Y-axis (Planned Economy to Free Market), and Z-axis (Dictatorship to Democracy).
+                  Explore historical shifts and compare trajectories. Disclaimer: Placements are subjective interpretations.
+              </p>
+         </div>
+
+        <!-- Top Left Panels -->
+        <div id="info-panels">
+            <div id="event-summary-panel" class="ui-panel">
+                <h4>Global Events (<span id="eventSummaryYear"></span>)</h4>
+                <p id="eventSummaryText">Slide the timeline to see events.</p>
+            </div>
+            <div id="filter-panel" class="ui-panel">
+                <h4>Filter by Continent</h4>
+                <div id="continent-filters">
+                    <!-- Checkboxes will be added here -->
+                    Loading filters...
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Right Panels -->
+        <div id="controls-panels">
+            <div id="user-input-panel" class="ui-panel">
+                <h4>Plot Your Ideology</h4>
+                <div class="slider-group">
+                     <div class="slider-label"><span>X: Communist (-)</span><span>Fascist (+)</span></div>
+                     <input type="range" id="userX" min="-10" max="10" value="0" step="0.1">
+                     <div class="slider-label"><span>Value:</span><span class="slider-value" id="userXValue">0.0</span></div>
+                </div>
+                 <div class="slider-group">
+                    <div class="slider-label"><span>Y: Planned (-)</span><span>Free Mkt (+)</span></div>
+                    <input type="range" id="userY" min="-10" max="10" value="0" step="0.1">
+                    <div class="slider-label"><span>Value:</span><span class="slider-value" id="userYValue">0.0</span></div>
+                </div>
+                 <div class="slider-group">
+                     <div class="slider-label"><span>Z: Dictator (-)</span><span>Democracy (+)</span></div>
+                    <input type="range" id="userZ" min="-10" max="10" value="0" step="0.1">
+                    <div class="slider-label"><span>Value:</span><span class="slider-value" id="userZValue">0.0</span></div>
+                </div>
+                <button id="plotUserPointBtn">Plot My Point</button>
+                <button id="clearUserPointsBtn" class="danger">Clear My Points</button>
+            </div>
+             <div id="camera-panel" class="ui-panel">
+                 <h4>Camera Views</h4>
+                 <button data-preset="iso">Isometric</button>
+                 <button data-preset="top">Top (Y+)</button>
+                 <button data-preset="bottom">Bottom (Y-)</button>
+                 <button data-preset="front">Front (Z+)</button>
+                 <button data-preset="back">Back (Z-)</button>
+                 <button data-preset="left">Left (X-)</button>
+                 <button data-preset="right">Right (X+)</button>
+             </div>
+        </div>
+
+        <!-- Bottom Timeline Panel -->
+        <div id="timeline-panel" class="ui-panel">
+            <label for="timelineSlider">Year:</label>
+            <span id="currentYearLabel">2025</span>
+            <input type="range" id="timelineSlider" min="1950" max="2025" value="2025" step="1">
+        </div>
+
+         <!-- Bottom Right Disclaimer -->
+         <div id="disclaimer-panel" class="ui-panel">
+              <h4>Disclaimer</h4>
+              This visualization is a conceptual tool based on a specific model. Placements are simplified, subjective interpretations for educational exploration, not definitive analysis. Use links for context.
+         </div>
+
+        <!-- Tooltip (initially hidden) -->
+        <div id="tooltip"></div>
+
+        <!-- Modal (initially hidden) -->
+        <div id="modal">
+            <button id="modal-close">×</button>
+            <div id="modal-content">
+                <h3 id="modal-title">Country Name (Year)</h3>
+                <p><strong>Justification:</strong> <span id="modal-justification"></span></p>
+                <div id="modal-change-info">
+                    <hr>
+                    <p><strong>Change From <span id="modal-prev-year">YYYY</span>:</strong> <span id="modal-prev-coords"></span></p>
+                </div>
+                 <div id="modal-link-container">
+                     <hr>
+                     <a id="modal-link" href="#" target="_blank" rel="noopener noreferrer">Learn More »</a>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Constants ---
+        const AXIS_MIN = -10;
+        const AXIS_MAX = 10;
+        const AXIS_LENGTH = AXIS_MAX - AXIS_MIN;
+        const HOVER_OPACITY = 0.2;
+        const DEFAULT_OPACITY = 1.0;
+        const FLAG_CDN_URL = 'https://flagcdn.com/w80/'; // w80 is a small size
+
+        // --- Global Variables ---
+        let scene, camera, renderer, orbitControls, raycaster, mouse;
+        let countryMeshes = new Map();       // iso -> { mesh: THREE.Mesh, iso: string, continent: string }
+        let historicalPathGroups = new Map(); // iso -> THREE.Group
+        // REMOVED: let changeArrows = new Map();
+        let userPointGroup;
+        let activeContinents = new Set();
+        let currentlyHoveredObj = null;     // The currently hovered Three.js object
+        let activePathISO = null;           // Track which historical path is visible
+        let tooltipElement, modalElement, modalContent, modalCloseBtn; // UI elements
+
+        // --- Data ---
+
+        // Top 25 Countries by Population (approx. late 2023/early 2024)
+        const countriesMasterList = [
+            { name: "India", iso: "in", continent: "Asia" },
+            { name: "China", iso: "cn", continent: "Asia" },
+            { name: "United States", iso: "us", continent: "North America" },
+            { name: "Indonesia", iso: "id", continent: "Asia" },
+            { name: "Pakistan", iso: "pk", continent: "Asia" },
+            { name: "Nigeria", iso: "ng", continent: "Africa" },
+            { name: "Brazil", iso: "br", continent: "South America" },
+            { name: "Bangladesh", iso: "bd", continent: "Asia" },
+            { name: "Russia", iso: "ru", continent: "Europe" },
+            { name: "Mexico", iso: "mx", continent: "North America" },
+            { name: "Japan", iso: "jp", continent: "Asia" },
+            { name: "Ethiopia", iso: "et", continent: "Africa" },
+            { name: "Philippines", iso: "ph", continent: "Asia" },
+            { name: "Egypt", iso: "eg", continent: "Africa" },
+            { name: "Vietnam", iso: "vn", continent: "Asia" },
+            { name: "DR Congo", iso: "cd", continent: "Africa" },
+            { name: "Turkey", iso: "tr", continent: "Asia" },
+            { name: "Iran", iso: "ir", continent: "Asia" },
+            { name: "Germany", iso: "de", continent: "Europe" },
+            { name: "Thailand", iso: "th", continent: "Asia" },
+            { name: "United Kingdom", iso: "gb", continent: "Europe" },
+            { name: "France", iso: "fr", continent: "Europe" },
+            { name: "Tanzania", iso: "tz", continent: "Africa" },
+            { name: "South Africa", iso: "za", continent: "Africa" },
+            { name: "Italy", iso: "it", continent: "Europe" }
+        ];
+
+        // Populated Historical Data (Interpretive & Simplified)
+        // Axis Reminder: X: Political (-Communist, +Fascist), Y: Economic (-Planned, +FreeMkt), Z: Governance (-Dictator, +Democracy)
+        const historicalData = {
+            "in": { // India
+                1950: { x: -1, y: -3, z: 7, justification: "Newly independent, non-aligned, democratic socialist leanings, state planning.", link: "https://en.wikipedia.org/wiki/History_of_India_(1947%E2%80%93present)" },
+                1970: { x: -1.5, y: -4, z: 6.5, justification: "Increased state control ('Licence Raj'), brief Emergency period curbed democracy.", link: "https://en.wikipedia.org/wiki/The_Emergency_(India)" },
+                1985: { x: -0.5, y: -2, z: 7, justification: "Early economic reforms begin, democracy restored and stable.", link: "https://en.wikipedia.org/wiki/Economic_liberalisation_in_India" },
+                2000: { x: 1.5, y: 3, z: 7.5, justification: "Post-1991 liberalization, rise of BJP, generally stable democracy.", link: "https://en.wikipedia.org/wiki/Economy_of_India" },
+                2025: { x: 2.5, y: 5, z: 6, justification: "Market economy, BJP dominance, Hindu nationalism, concerns over democratic backsliding/minority rights.", link: "https://en.wikipedia.org/wiki/Politics_of_India" }
+            },
+            "cn": { // China
+                1950: { x: -9, y: -9, z: -9, justification: "Establishment of PRC, Maoist single-party state, command economy.", link: "https://en.wikipedia.org/wiki/History_of_the_People%27s_Republic_of_China_(1949%E2%80%931976)"},
+                1970: { x: -9.5, y: -9.5, z: -9.5, justification: "Cultural Revolution peak, extreme state control and political repression.", link: "https://en.wikipedia.org/wiki/Cultural_Revolution"},
+                1985: { x: -7, y: -5, z: -8, justification: "Reform and opening up under Deng, economic liberalization begins within single-party state.", link: "https://en.wikipedia.org/wiki/Reform_and_opening-up"},
+                2000: { x: -6.5, y: -1, z: -7.5, justification: "Joining WTO, continued market reforms ('socialist market economy'), tight political control.", link: "https://en.wikipedia.org/wiki/History_of_the_People%27s_Republic_of_China_(1989%E2%80%932002)"},
+                2025: { x: -7, y: 0, z: -8.5, justification: "Xi Jinping era, increased state control ('state capitalism'), nationalism, authoritarian consolidation.", link: "https://en.wikipedia.org/wiki/Xi_Jinping_Administration"}
+            },
+            "us": { // United States
+                1950: { x: 3, y: 7, z: 8, justification: "Post-war liberal democracy, regulated capitalism ('New Deal consensus').", link: "https://en.wikipedia.org/wiki/History_of_the_United_States_(1945%E2%80%931964)" },
+                1970: { x: 2.5, y: 6.5, z: 8.5, justification: "Civil Rights era reforms, Vietnam War division, Keynesian economics dominant.", link: "https://en.wikipedia.org/wiki/History_of_the_United_States_(1964%E2%80%931980)"},
+                1985: { x: 4, y: 8.5, z: 8.5, justification: "Reagan era ('Reaganomics'), deregulation, strong anti-communism.", link: "https://en.wikipedia.org/wiki/History_of_the_United_States_(1980%E2%80%931991)" },
+                2000: { x: 3.5, y: 8, z: 8.5, justification: "Post-Cold War 'New Economy', relative political centrism.", link: "https://en.wikipedia.org/wiki/History_of_the_United_States_(1991%E2%80%932008)"},
+                2025: { x: 2, y: 7, z: 7, justification: "Increased political polarization, debates on regulation/social issues, concerns about democratic norms.", link: "https://en.wikipedia.org/wiki/History_of_the_United_States_(2008%E2%80%93present)" }
+            },
+             "id": { // Indonesia
+                1950: { x: -2, y: -4, z: 4, justification: "Early independence, unstable parliamentary democracy ('Guided Democracy' leanings), nationalist.", link: "https://en.wikipedia.org/wiki/History_of_Indonesia_(1945%E2%80%931949)" },
+                1970: { x: 5, y: -3, z: -7, justification: "Suharto's 'New Order' military-backed authoritarian regime, anti-communist, state-led development.", link: "https://en.wikipedia.org/wiki/New_Order_(Indonesia)" },
+                1985: { x: 5.5, y: -1, z: -7.5, justification: "Height of New Order repression, crony capitalism developing alongside state control.", link: "https://en.wikipedia.org/wiki/New_Order_(Indonesia)" },
+                2000: { x: 1, y: 2, z: 6, justification: "Post-Suharto 'Reformasi' transition to democracy, decentralization.", link: "https://en.wikipedia.org/wiki/Post-Suharto_era_in_Indonesia" },
+                2025: { x: 1.5, y: 4, z: 6.5, justification: "Consolidating democracy (flawed), significant market economy, regional influence.", link: "https://en.wikipedia.org/wiki/Politics_of_Indonesia" }
+            },
+            "pk": { // Pakistan
+                1950: { x: 1, y: 0, z: 5, justification: "Early independence, parliamentary system but unstable, feudal influences.", link: "https://en.wikipedia.org/wiki/History_of_Pakistan_(1947%E2%80%93present)" },
+                1970: { x: -3, y: -5, z: 4, justification: "Post-Bangladesh war, Bhutto's socialist period, nationalization, brief democracy.", link: "https://en.wikipedia.org/wiki/Zulfiqar_Ali_Bhutto" },
+                1985: { x: 6, y: 0, z: -8, justification: "Zia ul-Haq's military dictatorship, Islamization, pro-Western alignment.", link: "https://en.wikipedia.org/wiki/Zia-ul-Haq%27s_military_dictatorship" },
+                2000: { x: 4, y: 2, z: -5, justification: "Musharraf's military coup, 'enlightened moderation', military dominance.", link: "https://en.wikipedia.org/wiki/Pervez_Musharraf" },
+                2025: { x: 3, y: 1, z: 3, justification: "Hybrid regime, strong military influence, political instability, economic crises, weak democratic institutions.", link: "https://en.wikipedia.org/wiki/Politics_of_Pakistan" }
+            },
+             "ng": { // Nigeria
+                1950: { x: 0, y: -1, z: -6, justification: "British colonial rule, limited local participation.", link: "https://en.wikipedia.org/wiki/Colonial_Nigeria" },
+                1970: { x: 4, y: -3, z: -7, justification: "Post-Biafran War military rule, oil boom begins, state control over resources.", link: "https://en.wikipedia.org/wiki/History_of_Nigeria#Military_rule" },
+                1985: { x: 5, y: -2, z: -8, justification: "Series of military coups (Buhari/Babangida), state-led economy facing crises.", link: "https://en.wikipedia.org/wiki/History_of_Nigeria#Military_rule" },
+                2000: { x: 1, y: 1, z: 5, justification: "Return to democracy (Fourth Republic), but marred by corruption and instability.", link: "https://en.wikipedia.org/wiki/Nigerian_Fourth_Republic" },
+                2025: { x: 1.5, y: 2, z: 4.5, justification: "Flawed democracy, significant economic challenges (oil dependency), security issues.", link: "https://en.wikipedia.org/wiki/Politics_of_Nigeria" }
+            },
+            "br": { // Brazil
+                1950: { x: 1, y: 0, z: 6, justification: "Populist democracy (Vargas era ends), mixed economy.", link: "https://en.wikipedia.org/wiki/History_of_Brazil_(1945%E2%80%931964)" },
+                1970: { x: 6, y: -2, z: -7, justification: "Military dictatorship ('Brazilian Miracle' period), state-led industrialization, repression.", link: "https://en.wikipedia.org/wiki/Military_dictatorship_in_Brazil" },
+                1985: { x: 5, y: -1, z: -5, justification: "Gradual transition back to democracy ('Abertura'), economic stagnation.", link: "https://en.wikipedia.org/wiki/History_of_Brazil_(1985%E2%80%93present)" },
+                2000: { x: 0, y: 4, z: 7.5, justification: "Consolidated democracy, market reforms (Real Plan), Workers' Party rising.", link: "https://en.wikipedia.org/wiki/History_of_Brazil_(1985%E2%80%93present)" },
+                2025: { x: 2.5, y: 4.5, z: 6.5, justification: "Political polarization (Bolsonaro/Lula), social tensions, democratic institutions tested.", link: "https://en.wikipedia.org/wiki/Politics_of_Brazil" }
+            },
+             "bd": { // Bangladesh (Independent 1971)
+                1975: { x: -2, y: -5, z: -6, justification: "Post-independence instability, Mujibur Rahman assassinated, military coups, brief socialist phase.", link: "https://en.wikipedia.org/wiki/History_of_Bangladesh_after_independence" },
+                1985: { x: 4, y: -1, z: -7, justification: "Military rule under Ershad, some economic liberalization.", link: "https://en.wikipedia.org/wiki/History_of_Bangladesh_after_independence#Ershad_regime_(1982%E2%80%931990)" },
+                2000: { x: 1, y: 2, z: 5.5, justification: "Return to parliamentary democracy, political rivalry (Awami League/BNP), economic growth.", link: "https://en.wikipedia.org/wiki/History_of_Bangladesh_after_independence#Return_to_parliamentary_democracy_(1991%E2%80%93present)" },
+                2025: { x: 2, y: 4, z: 3.5, justification: "Dominance of Awami League, strong economic growth, concerns over democratic space and human rights.", link: "https://en.wikipedia.org/wiki/Politics_of_Bangladesh" }
+            },
+            "ru": { // Russia (Soviet Union until 1991)
+                1950: { x: -9, y: -9, z: -9, justification: "Stalinist Soviet Union, peak totalitarian control, command economy.", link: "https://en.wikipedia.org/wiki/History_of_the_Soviet_Union_(1927%E2%80%931953)" },
+                1970: { x: -8, y: -8, z: -8, justification: "Brezhnev era stagnation, bureaucracy, limited dissent tolerated.", link: "https://en.wikipedia.org/wiki/History_of_the_Soviet_Union_(1964%E2%80%931982)" },
+                1985: { x: -7, y: -7, z: -7, justification: "Gorbachev era begins - Perestroika/Glasnost aim to reform system.", link: "https://en.wikipedia.org/wiki/History_of_the_Soviet_Union_(1982%E2%80%931991)" },
+                1991: { x: 0, y: -2, z: 4, justification: "Collapse of USSR, chaotic transition towards democracy and market economy.", link: "https://en.wikipedia.org/wiki/History_of_Russia_(1991%E2%80%93present)"},
+                2000: { x: 2, y: 2, z: 4.5, justification: "Putin consolidates power, state reasserts control over economy, managed democracy.", link: "https://en.wikipedia.org/wiki/History_of_Russia_(1991%E2%80%93present)"},
+                2025: { x: 5, y: 1, z: -6, justification: "Authoritarian consolidation, state capitalism, nationalism, invasion of Ukraine.", link: "https://en.wikipedia.org/wiki/Politics_of_Russia" }
+            },
+             "mx": { // Mexico
+                1950: { x: 0, y: -1, z: -3, justification: "PRI dominance ('perfect dictatorship'), state-led development, corporatism.", link: "https://en.wikipedia.org/wiki/History_of_Mexico#PRI_hegemony" },
+                1970: { x: -0.5, y: -2, z: -4, justification: "Continued PRI rule, Tlatelolco massacre highlights repression, economic nationalism.", link: "https://en.wikipedia.org/wiki/History_of_Mexico#PRI_hegemony" },
+                1985: { x: 1, y: 1, z: -3.5, justification: "Debt crisis forces shift towards neoliberal reforms within PRI system.", link: "https://en.wikipedia.org/wiki/History_of_Mexico#End_of_PRI_hegemony" },
+                2000: { x: 1.5, y: 4, z: 6.5, justification: "End of PRI one-party rule (Fox elected), democratic transition, NAFTA impact.", link: "https://en.wikipedia.org/wiki/History_of_Mexico#End_of_PRI_hegemony" },
+                2025: { x: -1, y: 3, z: 6, justification: "AMLO presidency - populist left, attempts state intervention, democracy faces challenges (violence, polarization).", link: "https://en.wikipedia.org/wiki/Politics_of_Mexico" }
+            },
+            "jp": { // Japan
+                1950: { x: 2, y: 4, z: 7, justification: "Post-war US occupation ends, new democratic constitution, rebuilding economy.", link: "https://en.wikipedia.org/wiki/History_of_Japan#Postwar_period" },
+                1970: { x: 1.5, y: 6, z: 8.5, justification: "Rapid economic growth ('Japanese miracle'), LDP dominance, stable democracy.", link: "https://en.wikipedia.org/wiki/History_of_Japan#Postwar_period" },
+                1985: { x: 1.5, y: 7, z: 8.5, justification: "Peak economic power, 'bubble economy' forming, stable LDP rule.", link: "https://en.wikipedia.org/wiki/History_of_Japan#Postwar_period" },
+                2000: { x: 1, y: 5, z: 8.5, justification: "Post-bubble stagnation ('Lost Decade'), political reforms attempted.", link: "https://en.wikipedia.org/wiki/History_of_Japan#Heisei_period" },
+                2025: { x: 1.5, y: 5.5, z: 8, justification: "Stable democracy, 'Abenomics' attempts reform, demographic challenges, LDP dominance continues.", link: "https://en.wikipedia.org/wiki/Politics_of_Japan" }
+            },
+             "et": { // Ethiopia
+                1950: { x: 3, y: -6, z: -8, justification: "Imperial rule under Haile Selassie, feudal system, minimal development.", link: "https://en.wikipedia.org/wiki/History_of_Ethiopia#Haile_Selassie_era" },
+                1975: { x: -8, y: -8.5, z: -9.5, justification: "Derg military junta overthrows Emperor, Marxist-Leninist state, Red Terror.", link: "https://en.wikipedia.org/wiki/Derg" },
+                1985: { x: -8.5, y: -9, z: -9.5, justification: "Height of Derg rule, famine, civil war.", link: "https://en.wikipedia.org/wiki/History_of_Ethiopia_under_the_Derg" },
+                1995: { x: -4, y: -5, z: -4, justification: "Post-Derg transition (EPRDF), ethnic federalism established, state-led development.", link: "https://en.wikipedia.org/wiki/Transitional_Government_of_Ethiopia"},
+                2005: { x: -3, y: -3, z: -4.5, justification: "EPRDF dominance ('developmental state'), disputed election highlights authoritarian tendencies.", link: "https://en.wikipedia.org/wiki/Politics_of_Ethiopia#Late_20th_and_21st_centuries"},
+                2025: { x: 0, y: -1, z: -5, justification: "Post-EPRDF reforms under Abiy Ahmed initially promising, devolve into Tigray War, authoritarian backsliding.", link: "https://en.wikipedia.org/wiki/Politics_of_Ethiopia" }
+            },
+            "ph": { // Philippines
+                1950: { x: 2, y: 3, z: 6, justification: "Post-independence democracy, US influence, oligarchic politics.", link: "https://en.wikipedia.org/wiki/History_of_the_Philippines_(1946%E2%80%931965)" },
+                1975: { x: 5, y: 0, z: -7, justification: "Ferdinand Marcos' martial law dictatorship, crony capitalism.", link: "https://en.wikipedia.org/wiki/Martial_law_under_Ferdinand_Marcos" },
+                1987: { x: 1, y: 2, z: 6.5, justification: "People Power Revolution ousts Marcos, new constitution restores democracy.", link: "https://en.wikipedia.org/wiki/History_of_the_Philippines_(1986%E2%80%93present)" },
+                2000: { x: 1.5, y: 3, z: 6, justification: "Democracy consolidated but plagued by corruption, inequality.", link: "https://en.wikipedia.org/wiki/History_of_the_Philippines_(1986%E2%80%93present)" },
+                2025: { x: 3.5, y: 4, z: 5, justification: "Populism (Duterte/Marcos Jr.), challenges to rule of law, human rights concerns.", link: "https://en.wikipedia.org/wiki/Politics_of_the_Philippines" }
+            },
+             "eg": { // Egypt
+                1950: { x: 1, y: -1, z: -5, justification: "Monarchy under King Farouk, British influence, inequality.", link: "https://en.wikipedia.org/wiki/History_of_modern_Egypt#Kingdom_of_Egypt" },
+                1955: { x: -3, y: -6, z: -7, justification: "Nasser's revolution, Arab nationalism/socialism, single-party state, nationalizations.", link: "https://en.wikipedia.org/wiki/History_of_modern_Egypt#Republic_of_Egypt_(1953%E2%80%931958)"},
+                1970: { x: -2.5, y: -5, z: -7.5, justification: "Post-Nasser (Sadat takes over), maintains single-party state, state-controlled economy.", link: "https://en.wikipedia.org/wiki/History_of_modern_Egypt#Federation_of_Arab_Republics_(1972%E2%80%931977)"},
+                1985: { x: 2, y: -2, z: -7, justification: "Sadat/Mubarak era, shift towards West ('Infitah' reforms), authoritarian stability.", link: "https://en.wikipedia.org/wiki/History_of_Egypt_under_Hosni_Mubarak" },
+                2000: { x: 2.5, y: 0, z: -6.5, justification: "Mubarak regime entrenched, limited political space, crony capitalism grows.", link: "https://en.wikipedia.org/wiki/History_of_Egypt_under_Hosni_Mubarak" },
+                2012: { x: -1, y: -1, z: 3, justification: "Brief post-Arab Spring period, Morsi (Muslim Brotherhood) elected.", link: "https://en.wikipedia.org/wiki/History_of_Egypt_under_Mohamed_Morsi"},
+                2025: { x: 5, y: -1, z: -8.5, justification: "Sisi's military-backed rule post-2013 coup, severe repression, military dominates economy.", link: "https://en.wikipedia.org/wiki/Politics_of_Egypt" }
+            },
+             "vn": { // Vietnam (North/South until 1976)
+                // North Vietnam
+                1955: { x: -8.5, y: -8.5, z: -9, justification: "Communist North Vietnam established, single-party state, planned economy.", link: "https://en.wikipedia.org/wiki/History_of_Vietnam#Reunification_and_reforms" },
+                1970: { x: -9, y: -9, z: -9, justification: "Height of Vietnam War, rigid communist control in North.", link: "https://en.wikipedia.org/wiki/History_of_Vietnam#Reunification_and_reforms" },
+                 // Unified Vietnam
+                1980: { x: -8, y: -8, z: -8.5, justification: "Unified communist state, post-war hardship, centrally planned economy.", link: "https://en.wikipedia.org/wiki/History_of_Vietnam#Reunification_and_reforms" },
+                1990: { x: -7, y: -5, z: -8, justification: "'Đổi Mới' reforms introduce market elements, maintains single-party rule.", link: "https://en.wikipedia.org/wiki/%C4%90%E1%BB%95i_M%E1%BB%9Bi" },
+                2000: { x: -6.5, y: -2, z: -7.5, justification: "Continued market reforms, economic growth, tight political control.", link: "https://en.wikipedia.org/wiki/Economy_of_Vietnam" },
+                2025: { x: -6, y: 0, z: -7, justification: "'Socialist-oriented market economy', single-party state, economic integration.", link: "https://en.wikipedia.org/wiki/Politics_of_Vietnam" }
+            },
+             "cd": { // DR Congo (Belgian Congo until 1960)
+                1950: { x: 1, y: -7, z: -9.5, justification: "Belgian colonial rule, resource extraction, severe lack of rights.", link: "https://en.wikipedia.org/wiki/Belgian_Congo" },
+                1965: { x: 4, y: -4, z: -8.5, justification: "Post-independence chaos, Mobutu seizes power establishing dictatorship.", link: "https://en.wikipedia.org/wiki/History_of_the_Democratic_Republic_of_the_Congo#Mobutu_and_Zaire_(1965%E2%80%931997)" },
+                1985: { x: 5, y: -5, z: -9, justification: "Mobutu's Zaire - peak kleptocracy, state decay, repression.", link: "https://en.wikipedia.org/wiki/History_of_the_Democratic_Republic_of_the_Congo#Mobutu_and_Zaire_(1965%E2%80%931997)" },
+                2000: { x: 0, y: -2, z: -7, justification: "Post-Mobutu civil wars ('Africa's World War'), fragile transitional government.", link: "https://en.wikipedia.org/wiki/Second_Congo_War" },
+                2025: { x: 1, y: 0, z: -5, justification: "Nominal democracy, persistent conflict in East, weak state, resource curse.", link: "https://en.wikipedia.org/wiki/Politics_of_the_Democratic_Republic_of_the_Congo" }
+            },
+            "tr": { // Turkey
+                1950: { x: 1, y: 1, z: 5, justification: "Transition to multi-party democracy after single-party CHP rule.", link: "https://en.wikipedia.org/wiki/History_of_Turkey#Multi-party_period_(1945%E2%80%93present)" },
+                1970: { x: 0.5, y: 0, z: 4.5, justification: "Political instability, military interventions ('memorandum' coup 1971), mixed economy.", link: "https://en.wikipedia.org/wiki/History_of_Turkey#Multi-party_period_(1945%E2%80%93present)" },
+                1985: { x: 4, y: 2, z: -5, justification: "Post-1980 military coup rule, gradual return to controlled democracy, neoliberal reforms.", link: "https://en.wikipedia.org/wiki/History_of_the_Republic_of_Turkey#1980s" },
+                2000: { x: 2, y: 4, z: 6.5, justification: "Coalition governments, EU accession process drives reforms, relatively stable democracy.", link: "https://en.wikipedia.org/wiki/History_of_the_Republic_of_Turkey#2000s" },
+                2025: { x: 4.5, y: 3, z: -4, justification: "Erdoğan era - AKP dominance, shift to presidential system, democratic backsliding, assertive foreign policy.", link: "https://en.wikipedia.org/wiki/Politics_of_Turkey" }
+            },
+            "ir": { // Iran
+                1950: { x: 0, y: -1, z: 3, justification: "Constitutional monarchy under the Shah, rising nationalism (Mosaddegh).", link: "https://en.wikipedia.org/wiki/History_of_Iran#Pahlavi_dynasty" },
+                1970: { x: 4, y: -2, z: -7, justification: "Shah's autocratic rule (post-1953 coup), White Revolution reforms, oil wealth.", link: "https://en.wikipedia.org/wiki/History_of_Iran#Pahlavi_dynasty" },
+                1980: { x: -5, y: -6, z: -8.5, justification: "Islamic Revolution establishes theocracy under Khomeini, state control increases.", link: "https://en.wikipedia.org/wiki/Iranian_Revolution"},
+                1985: { x: -4, y: -5, z: -8, justification: "Iran-Iraq War, consolidation of theocratic state, war economy.", link: "https://en.wikipedia.org/wiki/History_of_the_Islamic_Republic_of_Iran"},
+                2000: { x: -3, y: -3, z: -6, justification: "Reformist movement under Khatami offers brief opening, theocratic structure remains.", link: "https://en.wikipedia.org/wiki/History_of_the_Islamic_Republic_of_Iran#Reformist_era_and_conservative_backlash"},
+                2025: { x: -3.5, y: -4, z: -7.5, justification: "Conservative dominance, Supreme Leader holds ultimate power, sanctions impact economy, protests challenge regime.", link: "https://en.wikipedia.org/wiki/Politics_of_Iran" }
+            },
+            "de": { // Germany (West Germany until 1990)
+                1950: { x: 2, y: 5, z: 7, justification: "West Germany: Post-war reconstruction, social market economy ('Soziale Marktwirtschaft'), stable democracy emerges.", link: "https://en.wikipedia.org/wiki/History_of_Germany_(1945%E2%80%931990)"},
+                1970: { x: 1.5, y: 6, z: 8.5, justification: "West Germany: Ostpolitik, economic strength, stable democracy, social reforms.", link: "https://en.wikipedia.org/wiki/History_of_Germany_(1945%E2%80%931990)"},
+                1985: { x: 1.5, y: 6.5, z: 9, justification: "West Germany: Kohl era, strong economy, central role in Europe.", link: "https://en.wikipedia.org/wiki/History_of_Germany_(1945%E2%80%931990)"},
+                1991: { x: 1, y: 5.5, z: 9, justification: "Reunification, integrating East Germany's economy and political system.", link: "https://en.wikipedia.org/wiki/German_reunification"},
+                2000: { x: 0.5, y: 6, z: 9, justification: "Unified Germany, Schröder's 'Agenda 2010' reforms, strong welfare state.", link: "https://en.wikipedia.org/wiki/History_of_Germany_since_1990"},
+                2025: { x: 0, y: 5.5, z: 8.5, justification: "Merkel era ends, coalition politics, energy transition challenges ('Zeitenwende'), stable democracy.", link: "https://en.wikipedia.org/wiki/Politics_of_Germany" }
+            },
+             "th": { // Thailand
+                1950: { x: 3, y: 1, z: -6, justification: "Military dominance in politics post-1932 revolution, brief democratic phases.", link: "https://en.wikipedia.org/wiki/History_of_Thailand_(1932%E2%80%931973)" },
+                1970: { x: 4, y: 2, z: -7, justification: "Military dictatorships (Thanom), US ally during Vietnam War.", link: "https://en.wikipedia.org/wiki/History_of_Thailand_(1932%E2%80%931973)" },
+                1985: { x: 2.5, y: 4, z: -4, justification: "Prem Tinsulanonda era - 'Semi-democracy' with military influence, economic growth.", link: "https://en.wikipedia.org/wiki/History_of_Thailand_(1973%E2%80%932001)" },
+                2000: { x: 1, y: 5, z: 6, justification: "Democratic period (post-1997 constitution), rise of Thaksin Shinawatra.", link: "https://en.wikipedia.org/wiki/History_of_Thailand_(1973%E2%80%932001)" },
+                2025: { x: 3.5, y: 4.5, z: -3, justification: "Post-2014 coup military-influenced system, monarchy's role central, limited democratic space.", link: "https://en.wikipedia.org/wiki/Politics_of_Thailand" }
+            },
+            "gb": { // United Kingdom
+                1950: { x: 0, y: 3, z: 9, justification: "Post-war Labour government establishes NHS, welfare state; Conservative return continues consensus.", link: "https://en.wikipedia.org/wiki/History_of_the_United_Kingdom#Post-war_Britain" },
+                1970: { x: -0.5, y: 2, z: 9, justification: "Economic troubles ('Winter of Discontent'), Labour/Conservative shifts, stable democracy.", link: "https://en.wikipedia.org/wiki/History_of_the_United_Kingdom_(1945%E2%80%93present)" },
+                1985: { x: 2.5, y: 7, z: 9, justification: "Thatcher era - Privatization, market liberalization, strong state on law/order.", link: "https://en.wikipedia.org/wiki/Thatcherism" },
+                2000: { x: 0.5, y: 6.5, z: 9, justification: "'New Labour' under Blair - 'Third Way' combines market economy with social investment.", link: "https://en.wikipedia.org/wiki/New_Labour" },
+                2025: { x: 1.5, y: 6, z: 8, justification: "Post-Brexit political shifts, Conservative government, economic challenges, stable democracy.", link: "https://en.wikipedia.org/wiki/Politics_of_the_United_Kingdom" }
+            },
+            "fr": { // France
+                1950: { x: 1, y: 2, z: 7.5, justification: "Fourth Republic - Parliamentary instability, post-war reconstruction, state planning influence.", link: "https://en.wikipedia.org/wiki/French_Fourth_Republic" },
+                1960: { x: 2.5, y: 3, z: 8, justification: "Fifth Republic established by De Gaulle - Strong presidency, decolonization, dirigisme.", link: "https://en.wikipedia.org/wiki/French_Fifth_Republic" },
+                1985: { x: -1, y: 4, z: 8.5, justification: "Mitterrand presidency - Socialist government undertakes nationalizations then shifts to austerity.", link: "https://en.wikipedia.org/wiki/History_of_France#Contemporary_period" },
+                2000: { x: 0, y: 5, z: 8.5, justification: "Cohabitation governments, EU integration deepens, social model debated.", link: "https://en.wikipedia.org/wiki/History_of_France#Contemporary_period" },
+                2025: { x: 1, y: 5.5, z: 8, justification: "Macron presidency - Centrist reforms, attempts market liberalization, social protests, stable democracy.", link: "https://en.wikipedia.org/wiki/Politics_of_France" }
+            },
+             "tz": { // Tanzania (Tanganyika until 1964)
+                1965: { x: -5, y: -7, z: -5, justification: "Nyerere's Ujamaa - African socialism, single-party state, villagization, nationalizations.", link: "https://en.wikipedia.org/wiki/History_of_Tanzania#Independence_and_Union" },
+                1985: { x: -4, y: -6, z: -5.5, justification: "Ujamaa policies failing, Nyerere steps down, single-party state remains.", link: "https://en.wikipedia.org/wiki/History_of_Tanzania#Post-Nyerere" },
+                1995: { x: -1, y: -2, z: 4, justification: "Transition to multi-party system, economic liberalization begins.", link: "https://en.wikipedia.org/wiki/History_of_Tanzania#Multi-party_politics" },
+                2005: { x: 0, y: 1, z: 5, justification: "CCM party dominance continues, moderate economic growth.", link: "https://en.wikipedia.org/wiki/Politics_of_Tanzania"},
+                2025: { x: 1.5, y: 2, z: 3.5, justification: "Democratic space constricted under Magufuli, partial reopening under Hassan, CCM dominance.", link: "https://en.wikipedia.org/wiki/Politics_of_Tanzania" }
+            },
+            "za": { // South Africa
+                1950: { x: 4, y: 2, z: -7, justification: "Apartheid regime established, racial segregation formalized, white minority rule.", link: "https://en.wikipedia.org/wiki/History_of_South_Africa#Apartheid_era" },
+                1970: { x: 5, y: 1, z: -8, justification: "Height of Apartheid repression, Bantustans created, international isolation grows.", link: "https://en.wikipedia.org/wiki/History_of_South_Africa#Apartheid_era" },
+                1985: { x: 5.5, y: 0, z: -8, justification: "State of Emergency, townships revolt, sanctions intensify, state security dominance.", link: "https://en.wikipedia.org/wiki/History_of_South_Africa#Apartheid_era" },
+                1995: { x: -1, y: 2, z: 8, justification: "Post-Apartheid transition, Mandela presidency, new democratic constitution (Rainbow Nation).", link: "https://en.wikipedia.org/wiki/History_of_South_Africa#Post-apartheid_era" },
+                2005: { x: -0.5, y: 3, z: 7.5, justification: "ANC dominance, GEAR economic policy, challenges of inequality persist.", link: "https://en.wikipedia.org/wiki/Politics_of_South_Africa"},
+                2025: { x: 0, y: 2.5, z: 6.5, justification: "ANC dominance wanes, state capture scandals, high unemployment, robust but challenged democracy.", link: "https://en.wikipedia.org/wiki/Politics_of_South_Africa" }
+            },
+            "it": { // Italy
+                1950: { x: 1, y: 3, z: 7, justification: "Post-fascist republic established, Christian Democrat dominance begins, economic recovery.", link: "https://en.wikipedia.org/wiki/History_of_Italy#Italian_Republic_(1946%E2%80%93present)" },
+                1970: { x: 0, y: 4, z: 8, justification: "'Years of Lead' terrorism, unstable coalition governments, economic growth.", link: "https://en.wikipedia.org/wiki/History_of_Italy#Italian_Republic_(1946%E2%80%93present)" },
+                1985: { x: 0.5, y: 5, z: 8.5, justification: "Craxi's socialist-led government, relative stability, continued Christian Democrat influence.", link: "https://en.wikipedia.org/wiki/History_of_Italy#Italian_Republic_(1946%E2%80%93present)" },
+                1995: { x: 1.5, y: 5.5, z: 8, justification: "Post-Tangentopoli scandal political realignment ('Second Republic'), Berlusconi rises.", link: "https://en.wikipedia.org/wiki/History_of_Italy#Second_Republic_(1992%E2%80%93present)" },
+                2005: { x: 2, y: 5, z: 8, justification: "Berlusconi dominates politics, economic stagnation begins.", link: "https://en.wikipedia.org/wiki/History_of_Italy#Second_Republic_(1992%E2%80%93present)"},
+                2025: { x: 3.5, y: 5, z: 7.5, justification: "Political fragmentation, rise of populist/right-wing parties (Meloni govt), economic challenges.", link: "https://en.wikipedia.org/wiki/Politics_of_Italy" }
+            }
+        }; // End of historicalData
+
+        const eventSummaries = {
+            1950: "Post-WWII era begins; Cold War tensions rise between US and Soviet blocs. Decolonization movements gain momentum across Asia and Africa.",
+            1960: "Height of the Cold War (Cuban Missile Crisis); Vietnam War escalates. Civil Rights movements active in the US. Many African nations gain independence.",
+            1970: "Détente period in Cold War; Oil shocks impact global economy. China begins opening to the West. Rise of military dictatorships in Latin America.",
+            1985: "Renewed Cold War tensions; Rise of neoliberalism in US/UK. Soviet Union under Gorbachev initiates reforms. Debt crisis in developing world.",
+            1991: "Collapse of the Soviet Union ends the Cold War. Rise of US unipolarity. Start of globalization surge and internet accessibility.",
+            2001: "9/11 attacks reshape global security focus; War on Terror begins. China joins WTO, accelerating its economic rise.",
+            2008: "Global Financial Crisis triggers worldwide recession, leading to austerity measures and debates on financial regulation.",
+            2015: "Rise of ISIS, Syrian Civil War intensifies refugee crisis. Paris Agreement on climate change signed. Rise of populism in various regions.",
+            2020: "COVID-19 pandemic disrupts global society and economy. Increased focus on geopolitical competition (US-China). Democratic backsliding observed in several nations.",
+        };
+
+        // Dynamically get continents from the potentially larger list
+        const continents = [...new Set(countriesMasterList.map(c => c.continent))].sort();
+
+        // --- Helper Functions ---
+         function getCountryDetails(isoCode) {
+            return countriesMasterList.find(c => c.iso === isoCode);
+        }
+
+        function getHistoricalYears(isoCode) {
+            if (!historicalData[isoCode]) return [];
+            // Ensure keys are treated as numbers and sorted correctly
+            return Object.keys(historicalData[isoCode]).map(Number).sort((a, b) => a - b);
+        }
+
+        function getBracketingData(isoCode, selectedYear) {
+            const years = getHistoricalYears(isoCode);
+            if (years.length === 0) return { current: null, next: null };
+
+            let current = null;
+            let next = null;
+
+            for (let i = 0; i < years.length; i++) {
+                const year = years[i];
+                 // Check if data exists for this year before assigning
+                 if (historicalData[isoCode][year] && typeof historicalData[isoCode][year].x === 'number') {
+                    if (year <= selectedYear) {
+                        current = { year: year, data: historicalData[isoCode][year] };
+                    } else {
+                        next = { year: year, data: historicalData[isoCode][year] };
+                        break; // Found the next valid point, stop searching
+                    }
+                }
+            }
+             // Handle edge case: selectedYear is before the first valid data point
+             if (current === null && years.length > 0) {
+                 // Find the first year with valid data
+                 for(let i=0; i< years.length; i++) {
+                      const firstValidYear = years[i];
+                      if (historicalData[isoCode][firstValidYear] && typeof historicalData[isoCode][firstValidYear].x === 'number') {
+                          current = { year: firstValidYear, data: historicalData[isoCode][firstValidYear] };
+                           // Find the next valid point after the first one
+                           for (let j=i+1; j < years.length; j++) {
+                                if (historicalData[isoCode][years[j]] && typeof historicalData[isoCode][years[j]].x === 'number') {
+                                    next = { year: years[j], data: historicalData[isoCode][years[j]] };
+                                    break;
+                                }
+                           }
+                          // If selectedYear is before the very first data point, lock to that point
+                          if (selectedYear < firstValidYear) {
+                              next = current; // Stay at the first position
+                          }
+                          break; // Found the first valid point
+                      }
+                 }
+             }
+
+            return { current, next };
+        }
+
+
+        function getPreviousDiscreteDataPoint(isoCode, currentDiscreteYear) {
+            const years = getHistoricalYears(isoCode);
+             const numericCurrentYear = Number(currentDiscreteYear); // Ensure it's a number
+            const currentIndex = years.indexOf(numericCurrentYear);
+
+             // Search backwards from the current index for the previous year with valid data
+            for (let i = currentIndex - 1; i >= 0; i--) {
+                 const prevYear = years[i];
+                 // Check if data for this previous year is valid
+                 if (historicalData[isoCode][prevYear] && typeof historicalData[isoCode][prevYear].x === 'number') {
+                    return { year: prevYear, data: historicalData[isoCode][prevYear] };
+                 }
+            }
+            return null; // No valid previous point found
+        }
+
+        function getEventSummary(selectedYear) {
+            let summaryYear = 0;
+            let summaryText = "No events found for this period.";
+             // Ensure keys are numbers for correct sorting
+            const sortedYears = Object.keys(eventSummaries).map(Number).sort((a, b) => a - b);
+
+            for (const year of sortedYears) {
+                if (year <= selectedYear) {
+                    summaryYear = year;
+                    // Access summary using the numeric year key
+                    summaryText = eventSummaries[year];
+                } else {
+                    break;
+                }
+            }
+            return { year: summaryYear, text: summaryText };
+        }
+
+        function mapToAxisRange(value) {
+            // Simple linear mapping, assumes data is already in desired range [-10, 10]
+            // Clamp values just in case data slightly exceeds bounds
+             return Math.max(AXIS_MIN, Math.min(AXIS_MAX, value));
+        }
+
+        function createTextSprite(text, position, color = '#ffffff', fontSize = 16, backgroundMargin = 4, backgroundColor = 'rgba(0,0,0,0.3)') {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const font = `${fontSize}px Arial`;
+            context.font = font;
+            const textWidth = context.measureText(text).width;
+
+            canvas.width = textWidth + backgroundMargin * 2;
+            canvas.height = fontSize + backgroundMargin * 2;
+
+            // Optional background
+            if (backgroundColor) {
+                context.fillStyle = backgroundColor;
+                context.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            context.font = font;
+            context.fillStyle = color;
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMaterial);
+
+            // Scale the sprite based on text size - adjust empirically
+            const scaleFactor = 0.05 * fontSize; // Adjust as needed
+            sprite.scale.set(canvas.width / canvas.height * scaleFactor, scaleFactor, 1);
+
+
+            sprite.position.copy(position);
+
+            return sprite;
+        }
+
+
+        // --- Initialization ---
+        function init() {
+            // Basic Setup
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(15, 15, 15); // Initial camera position
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x1a1a1a); // Match body background
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xcccccc, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 0.5).normalize();
+            scene.add(directionalLight);
+
+            // Controls
+            orbitControls = new OrbitControls(camera, renderer.domElement);
+            orbitControls.enableDamping = true;
+            orbitControls.dampingFactor = 0.1;
+            orbitControls.screenSpacePanning = false; // Keep panning relative to ground plane
+             orbitControls.target.set(0,0,0); // Look at origin
+
+            // Raycasting
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // User Points Group
+             userPointGroup = new THREE.Group();
+             scene.add(userPointGroup);
+
+            // Get UI Elements
+            tooltipElement = document.getElementById('tooltip');
+            modalElement = document.getElementById('modal');
+            modalContent = document.getElementById('modal-content'); // Specific content area for population
+            modalCloseBtn = document.getElementById('modal-close');
+
+            // Create Axes & Labels
+            createAxes();
+
+            // Load Data & Create Objects
+            loadDataAndCreateObjects(); // Populates maps
+
+            // Setup UI Listeners
+            setupUIListeners();
+
+            // Initial Filter Application & Timeline Update
+            continents.forEach(c => activeContinents.add(c)); // Start with all checked
+            populateContinentFilters(); // Create checkboxes
+            applyContinentFilter(); // Apply initial filter
+            updateTimeline(parseInt(document.getElementById('timelineSlider').value)); // Initial timeline update
+
+            // Add resize listener
+            window.addEventListener('resize', onWindowResize);
+            // Add interaction listeners
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('click', onClick);
+
+
+            // Start animation loop
+            animate();
+        }
+
+        // --- Core 3D Functions ---
+        function createAxes() {
+            const axisMaterial = new THREE.LineBasicMaterial({ color: 0x888888 });
+            const length = AXIS_MAX * 1.1; // Extend slightly beyond max value
+
+             // X Axis (Red) - Political: Communist (-) to Fascist (+)
+             const xPoints = [new THREE.Vector3(AXIS_MIN, 0, 0), new THREE.Vector3(AXIS_MAX, 0, 0)];
+             const xGeometry = new THREE.BufferGeometry().setFromPoints(xPoints);
+             const xAxis = new THREE.Line(xGeometry, new THREE.LineBasicMaterial({ color: 0xff6666 })); // Brighter red
+             scene.add(xAxis);
+
+             // Y Axis (Green) - Economic: Planned (-) to Free Market (+)
+             const yPoints = [new THREE.Vector3(0, AXIS_MIN, 0), new THREE.Vector3(0, AXIS_MAX, 0)];
+             const yGeometry = new THREE.BufferGeometry().setFromPoints(yPoints);
+             const yAxis = new THREE.Line(yGeometry, new THREE.LineBasicMaterial({ color: 0x66ff66 })); // Brighter green
+             scene.add(yAxis);
+
+             // Z Axis (Blue) - Governance: Dictatorship (-) to Democracy (+)
+             const zPoints = [new THREE.Vector3(0, 0, AXIS_MIN), new THREE.Vector3(0, 0, AXIS_MAX)];
+             const zGeometry = new THREE.BufferGeometry().setFromPoints(zPoints);
+             const zAxis = new THREE.Line(zGeometry, new THREE.LineBasicMaterial({ color: 0x6666ff })); // Brighter blue
+             scene.add(zAxis);
+
+            // Axis Labels (Using Sprites) - Adjust positions empirically
+            const labelOffset = AXIS_MAX * 1.15; // How far out the main labels are
+            const labelYOffset = 0.5; // Raise labels slightly off the plane
+
+            // Main Labels
+             scene.add(createTextSprite('Fascist (+X)', new THREE.Vector3(labelOffset, labelYOffset, 0), '#ffaaaa', 18));
+             scene.add(createTextSprite('Communist (-X)', new THREE.Vector3(-labelOffset, labelYOffset, 0), '#ffaaaa', 18));
+             scene.add(createTextSprite('Free Market (+Y)', new THREE.Vector3(0, labelOffset + labelYOffset, 0), '#aaffaa', 18));
+             scene.add(createTextSprite('Planned (-Y)', new THREE.Vector3(0, -labelOffset + labelYOffset, 0), '#aaffaa', 18));
+             scene.add(createTextSprite('Democracy (+Z)', new THREE.Vector3(0, labelYOffset, labelOffset), '#aaaaff', 18));
+             scene.add(createTextSprite('Dictatorship (-Z)', new THREE.Vector3(0, labelYOffset, -labelOffset), '#aaaaff', 18));
+
+            // Intermediate Labels - Using PRD terms
+             const midLabelYOffset = 0.2; // Smaller offset for intermediate
+             const midFontSize = 14;
+             const midColor = '#cccccc';
+             // Approximate positions based on PRD terms (-10 to +10 scale)
+             scene.add(createTextSprite('Libertarian', new THREE.Vector3(AXIS_MAX * 0.3, midLabelYOffset, 0), midColor, midFontSize)); // ~+3 X
+             scene.add(createTextSprite('Socialist', new THREE.Vector3(AXIS_MAX * -0.3, midLabelYOffset, 0), midColor, midFontSize)); // ~-3 X
+             scene.add(createTextSprite('Regulated Market', new THREE.Vector3(0, AXIS_MAX * 0.5 + midLabelYOffset, 0), midColor, midFontSize)); // ~+5 Y
+             scene.add(createTextSprite('Subsidized Market', new THREE.Vector3(0, AXIS_MAX * -0.2 + midLabelYOffset, 0), midColor, midFontSize)); // ~-2 Y (Distinguishing from Planned)
+             scene.add(createTextSprite('Republic', new THREE.Vector3(0, midLabelYOffset, AXIS_MAX * 0.5), midColor, midFontSize)); // ~+5 Z
+             scene.add(createTextSprite('Oligarchy', new THREE.Vector3(0, midLabelYOffset, AXIS_MAX * -0.5), midColor, midFontSize)); // ~-5 Z
+        }
+
+
+        function loadDataAndCreateObjects() {
+            const textureLoader = new THREE.TextureLoader();
+            const sphereGeometry = new THREE.SphereGeometry(0.4, 32, 16); // Size of country spheres
+
+            countriesMasterList.forEach(country => {
+                // Only create object IF historical data exists for this country
+                if (historicalData[country.iso] && Object.keys(historicalData[country.iso]).length > 0) {
+                    const fallbackMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xaaaaaa,
+                        transparent: true,
+                        opacity: DEFAULT_OPACITY,
+                        roughness: 0.7,
+                        metalness: 0.1
+                    });
+
+                    const countryMesh = new THREE.Mesh(sphereGeometry, fallbackMaterial);
+                    countryMesh.userData = {
+                        iso: country.iso,
+                        name: country.name,
+                        continent: country.continent,
+                        type: 'country' // To distinguish from user points
+                    };
+                    // Start hidden until timeline update places it correctly
+                    countryMesh.visible = false;
+
+                    scene.add(countryMesh);
+                    countryMeshes.set(country.iso, { mesh: countryMesh, iso: country.iso, continent: country.continent });
+
+                    // Load flag texture asynchronously
+                    const flagUrl = `${FLAG_CDN_URL}${country.iso}.png`;
+                    textureLoader.load(
+                        flagUrl,
+                        (texture) => {
+                             texture.colorSpace = THREE.SRGBColorSpace; // Correct color space for PNGs
+                             texture.wrapS = THREE.ClampToEdgeWrapping; // Avoid repeating edges
+                             texture.wrapT = THREE.ClampToEdgeWrapping;
+
+                            countryMesh.material = new THREE.MeshStandardMaterial({
+                                map: texture,
+                                transparent: true, // Keep transparency enabled for hover effects
+                                opacity: DEFAULT_OPACITY,
+                                roughness: 0.7,
+                                metalness: 0.1,
+                                side: THREE.FrontSide // Ensure front is visible
+                            });
+                             countryMesh.material.needsUpdate = true;
+                        },
+                        undefined, // Progress callback (optional)
+                        (error) => {
+                            console.error(`Failed to load flag for ${country.iso}:`, error);
+                            // Stick with fallback material
+                        }
+                    );
+
+                    // Create Historical Path (initially hidden)
+                    const pathGroup = createHistoricalPath(country.iso);
+                    if (pathGroup) {
+                        scene.add(pathGroup);
+                        historicalPathGroups.set(country.iso, pathGroup);
+                    }
+
+                    // REMOVED: Change Arrow Creation
+                    // const arrow = createChangeArrow(country.iso);
+                    //  if(arrow) {
+                    //      scene.add(arrow);
+                    //      changeArrows.set(country.iso, arrow);
+                    //  }
+                } else {
+                     // console.warn(`No historical data found for ${country.name} (${country.iso}). Skipping visualization.`);
+                }
+            });
+             console.log(`Loaded data and created objects for ${countryMeshes.size} countries.`);
+        }
+
+        function createHistoricalPath(iso) {
+            const years = getHistoricalYears(iso);
+            if (years.length < 1) return null; // Allow path even for single points (just shows marker)
+
+            const pathGroup = new THREE.Group();
+            pathGroup.visible = false; // Hidden by default
+            pathGroup.userData = { iso: iso, type: 'path' };
+
+            const points = [];
+            const markerGeometry = new THREE.SphereGeometry(0.1, 8, 8); // Small markers
+            const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // Bright yellow markers
+
+            years.forEach(year => {
+                 // Ensure accessing data with numeric key
+                const data = historicalData[iso][year];
+                // Check if data exists for the year before creating point
+                 if(data && typeof data.x === 'number') {
+                     const pos = new THREE.Vector3(mapToAxisRange(data.x), mapToAxisRange(data.y), mapToAxisRange(data.z));
+                     points.push(pos);
+
+                     // Add marker sphere
+                     const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                     marker.position.copy(pos);
+                     pathGroup.add(marker);
+
+                     // Add year label sprite near marker
+                     const labelPos = pos.clone().add(new THREE.Vector3(0, 0.2, 0)); // Position label slightly above
+                     pathGroup.add(createTextSprite(year.toString(), labelPos, '#ffffaa', 12));
+                 } else {
+                     console.warn(`Missing or invalid data for ${iso} in year ${year} for path creation.`);
+                 }
+            });
+
+            // Add connecting line only if there are 2+ valid points
+            if (points.length >= 2) {
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 1 }); // White line
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                pathGroup.add(line);
+            }
+
+            return pathGroup;
+        }
+
+        // REMOVED: createChangeArrow function
+        // function createChangeArrow(iso) { ... }
+
+
+        function updateTimeline(selectedYear) {
+            selectedYear = parseInt(selectedYear); // Ensure it's a number
+            document.getElementById('currentYearLabel').textContent = selectedYear;
+
+             // Update Event Summary
+             updateEventSummary(selectedYear);
+
+            // Iterate over the actual country meshes present in the scene
+            countryMeshes.forEach(({ mesh, iso, continent }) => {
+                 // Ensure mesh exists before proceeding
+                 if (!mesh) return;
+
+                 const isVisibleByFilter = activeContinents.has(continent);
+                 mesh.visible = false; // Assume hidden initially
+
+                 if (isVisibleByFilter) {
+                    const { current, next } = getBracketingData(iso, selectedYear);
+
+                    if (current && current.data && typeof current.data.x === 'number') { // Check data validity
+                         // Calculate position based on interpolation
+                        const currentPos = new THREE.Vector3(mapToAxisRange(current.data.x), mapToAxisRange(current.data.y), mapToAxisRange(current.data.z));
+                        let interpolatedPos = currentPos.clone(); // Default to current pos
+
+                         if (next && next.data && typeof next.data.x === 'number' && current.year !== next.year) {
+                            // Ensure we handle the case where selectedYear might be before the first point
+                            if (selectedYear >= current.year) {
+                                const nextPos = new THREE.Vector3(mapToAxisRange(next.data.x), mapToAxisRange(next.data.y), mapToAxisRange(next.data.z));
+                                // Calculate interpolation alpha (0 to 1)
+                                const alpha = Math.max(0, Math.min(1, (selectedYear - current.year) / (next.year - current.year)));
+
+                                if(!isNaN(alpha)) { // Avoid NaN if years are same
+                                    interpolatedPos.lerpVectors(currentPos, nextPos, alpha);
+                                }
+                             }
+                             // If selectedYear < current.year, interpolatedPos remains currentPos (correct behavior)
+                        }
+
+                        // Update mesh position and make visible
+                        mesh.position.copy(interpolatedPos);
+                         mesh.visible = true; // Make visible as it has a valid position
+
+                        // Store discrete data reference for click/arrow logic
+                        mesh.userData.currentDiscreteData = current.data;
+                         // Ensure year is stored as number
+                        mesh.userData.currentDiscreteYear = Number(current.year);
+                        mesh.userData.interpolatedPos = interpolatedPos; // Store for tooltip
+
+                    }
+                     // If current is null or data invalid, the mesh remains invisible (as set initially)
+                }
+                 // If mesh is hidden (either by filter or lack of data), also hide its path
+                 if (!mesh.visible) {
+                     const path = historicalPathGroups.get(iso);
+                     if (path) path.visible = false;
+                     // REMOVED: Arrow hiding logic
+                     // const arrow = changeArrows.get(iso);
+                     // if (arrow) arrow.visible = false;
+                 }
+
+            });
+
+            // REMOVED: Call to updateChangeArrows()
+            // updateChangeArrows();
+
+             // Reset hover state if hovered object becomes invisible
+             if (currentlyHoveredObj && !currentlyHoveredObj.visible) {
+                 resetHoverState();
+             }
+        }
+
+        function updateEventSummary(selectedYear) {
+            const summary = getEventSummary(selectedYear);
+            document.getElementById('eventSummaryYear').textContent = summary.year > 0 ? summary.year : selectedYear;
+            document.getElementById('eventSummaryText').textContent = summary.text;
+        }
+
+        // REMOVED: updateChangeArrows function
+        // function updateChangeArrows() { ... }
+
+
+        function applyContinentFilter() {
+            // Update visibility based on the activeContinents set
+            countryMeshes.forEach(({ mesh, iso, continent }) => {
+                // Only affect visibility if the mesh exists (i.e., had data initially)
+                 if (mesh) {
+                     const shouldBeVisibleByContinent = activeContinents.has(continent);
+                     // If filtered out by continent, hide it and its elements regardless of timeline data
+                     if (!shouldBeVisibleByContinent) {
+                          mesh.visible = false;
+                          const path = historicalPathGroups.get(iso);
+                          if (path) path.visible = false;
+                          // REMOVED: Arrow hiding logic
+                          // const arrow = changeArrows.get(iso);
+                          // if (arrow) arrow.visible = false;
+                     }
+                     // If it *should* be visible by continent, updateTimeline will handle final visibility based on data for the current year.
+                 }
+            });
+
+             // Reset hover state if the hovered country is now filtered out
+             if (currentlyHoveredObj && currentlyHoveredObj.userData.type === 'country' && !activeContinents.has(currentlyHoveredObj.userData.continent)) {
+                 resetHoverState();
+             }
+
+            // Re-run timeline update to ensure correct positions/visibility AFTER filtering
+            // This is important because a country might be re-enabled by the filter but have no data for the current year.
+             updateTimeline(parseInt(document.getElementById('timelineSlider').value));
+        }
+
+        // --- Interaction Functions ---
+        function setupUIListeners() {
+            // Timeline Slider
+            const timelineSlider = document.getElementById('timelineSlider');
+            timelineSlider.addEventListener('input', (e) => updateTimeline(parseInt(e.target.value)));
+
+            // Continent Filters (checkbox listeners added in populateContinentFilters)
+
+            // User Input Sliders
+            const userSliders = ['X', 'Y', 'Z'];
+            userSliders.forEach(axis => {
+                const slider = document.getElementById(`user${axis}`);
+                const valueDisplay = document.getElementById(`user${axis}Value`);
+                slider.addEventListener('input', () => {
+                    valueDisplay.textContent = parseFloat(slider.value).toFixed(1);
+                });
+                 // Initialize display
+                 valueDisplay.textContent = parseFloat(slider.value).toFixed(1);
+            });
+
+            // User Input Buttons
+            document.getElementById('plotUserPointBtn').addEventListener('click', plotUserPoint);
+            document.getElementById('clearUserPointsBtn').addEventListener('click', clearUserPoints);
+
+            // Camera Preset Buttons
+             document.getElementById('camera-panel').addEventListener('click', (e) => {
+                 if (e.target.tagName === 'BUTTON' && e.target.dataset.preset) {
+                     setCameraView(e.target.dataset.preset);
+                 }
+             });
+
+            // Modal Close Button
+            modalCloseBtn.addEventListener('click', hideModal);
+             // Optional: Close modal on clicking outside
+             modalElement.addEventListener('click', (e) => {
+                 if (e.target === modalElement) { // Check if the click was on the backdrop
+                     hideModal();
+                 }
+             });
+        }
+
+        function populateContinentFilters() {
+            const container = document.getElementById('continent-filters');
+            container.innerHTML = ''; // Clear loading message
+            continents.forEach(continent => {
+                 const div = document.createElement('div');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `filter-${continent.replace(/\s+/g, '-')}`;
+                checkbox.value = continent;
+                checkbox.checked = true; // Default to checked
+                checkbox.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        activeContinents.add(continent);
+                    } else {
+                        activeContinents.delete(continent);
+                    }
+                    applyContinentFilter();
+                });
+
+                const label = document.createElement('label');
+                label.htmlFor = checkbox.id;
+                label.textContent = continent;
+
+                 div.appendChild(checkbox);
+                 div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onMouseMove(event) {
+            // Calculate mouse position in normalized device coordinates (-1 to +1)
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // Update the picking ray with the camera and mouse position
+            raycaster.setFromCamera(mouse, camera);
+
+             // Combine meshes that can be hovered
+             const hoverableObjects = [
+                 ...Array.from(countryMeshes.values()).map(cm => cm.mesh),
+                 ...userPointGroup.children
+             ].filter(obj => obj && obj.visible); // Raycast only visible objects
+
+
+            // Calculate objects intersecting the picking ray
+            const intersects = raycaster.intersectObjects(hoverableObjects, false); // Check children recursively? No.
+
+            if (intersects.length > 0) {
+                // Intersected object is the first one
+                const intersectedObj = intersects[0].object;
+
+                 // Check if it's a different object than the one currently hovered
+                 if (currentlyHoveredObj !== intersectedObj) {
+                      // Moved to a new object or from empty space to an object
+                      resetHoverState(); // Reset previous state first
+
+                      currentlyHoveredObj = intersectedObj;
+
+                      // Handle specific hover effect for countries
+                      if (intersectedObj.userData.type === 'country') {
+                         handleCountryHover(intersectedObj.userData.iso);
+                      }
+                      // Show tooltip for both country and user points that are hovered
+                      showTooltip(intersectedObj, event.clientX, event.clientY);
+
+                 } else {
+                      // Still hovering the same object, just update tooltip position
+                      if (tooltipElement.style.display === 'block') { // Only update if visible
+                           updateTooltipPosition(event.clientX, event.clientY);
+                      } else {
+                           showTooltip(intersectedObj, event.clientX, event.clientY); // Show if it became visible again
+                      }
+                 }
+
+            } else {
+                 // Not hovering any registered object
+                 if (currentlyHoveredObj) {
+                     // Moved from an object to empty space
+                     resetHoverState();
+                 }
+                 // Ensure tooltip is hidden if not hovering anything
+                 // hideTooltip(); // Already handled in resetHoverState
+            }
+        }
+
+
+        function onClick(event) {
+             // Allow interaction with UI panels first
+             if (event.target.closest('.ui-panel, #modal')) { // Also ignore clicks inside modal
+                 return; // Click was inside a UI element, don't process for 3D scene
+             }
+
+             // Update mouse and raycaster for click (same as mousemove)
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            // Only check for clicks on country meshes that are visible
+             const countryMeshList = Array.from(countryMeshes.values()).map(cm => cm.mesh).filter(mesh => mesh && mesh.visible);
+             const intersects = raycaster.intersectObjects(countryMeshList, false);
+
+            if (intersects.length > 0) {
+                const clickedObj = intersects[0].object;
+                 // Ensure clicked object has the necessary data loaded for the modal
+                 if (clickedObj.userData.type === 'country' && clickedObj.userData.currentDiscreteData) {
+                     showModal(clickedObj.userData.iso);
+                 }
+            } else {
+                 // Clicked on empty space - hide modal if it's open
+                 hideModal();
+            }
+        }
+
+         function handleCountryHover(iso) {
+             // Dim others
+             countryMeshes.forEach(cm => {
+                 // Make sure mesh and material exist before trying to modify
+                 if (cm.mesh && cm.mesh.material && cm.iso !== iso) {
+                     cm.mesh.material.opacity = HOVER_OPACITY;
+                     cm.mesh.material.transparent = true; // Ensure transparency is enabled
+                 }
+             });
+
+             // Mark this path as active
+             activePathISO = iso;
+             // REMOVED: Call to updateChangeArrows()
+
+             // Show historical path
+             const pathGroup = historicalPathGroups.get(iso);
+             if (pathGroup) {
+                 pathGroup.visible = true;
+             }
+         }
+
+         function resetHoverState() {
+             // Restore opacity only if an object was previously hovered
+             if (currentlyHoveredObj) {
+                 countryMeshes.forEach(cm => {
+                     // Check mesh and material exist
+                     if (cm.mesh && cm.mesh.material) {
+                         cm.mesh.material.opacity = DEFAULT_OPACITY;
+                     }
+                 });
+             }
+
+              // Hide the active historical path if one exists
+             if (activePathISO) {
+                 const pathGroup = historicalPathGroups.get(activePathISO);
+                 if (pathGroup) {
+                     pathGroup.visible = false;
+                 }
+             }
+
+             // Reset active path marker
+             activePathISO = null;
+             // REMOVED: Call to updateChangeArrows()
+
+             hideTooltip();
+             currentlyHoveredObj = null; // Clear the reference to the hovered object
+         }
+
+
+        function showTooltip(object, x, y) {
+            let content = '';
+             // Use interpolated position if available (more accurate during transition)
+            const pos = object.userData.interpolatedPos || object.position;
+            // Check if pos exists and has x,y,z before trying to access
+             const coords = (pos && typeof pos.x === 'number')
+                ? `X: ${pos.x.toFixed(1)}, Y: ${pos.y.toFixed(1)}, Z: ${pos.z.toFixed(1)}`
+                : '(Position unavailable)';
+
+
+            if (object.userData.type === 'country') {
+                const yearHint = object.userData.currentDiscreteYear ? `(~${object.userData.currentDiscreteYear})` : '';
+                content = `<strong>${object.userData.name}</strong> ${yearHint}<br>${coords}`;
+            } else if (object.userData.type === 'userPoint') {
+                content = `<strong>Your Point</strong><br>${coords}`;
+            }
+
+             if (content) { // Only show tooltip if content was generated
+                 tooltipElement.innerHTML = content;
+                 tooltipElement.style.display = 'block';
+                 updateTooltipPosition(x, y); // Use separate function for positioning
+             } else {
+                 hideTooltip(); // Hide if no content
+             }
+        }
+
+         function updateTooltipPosition(x, y) {
+             // Position tooltip near cursor, ensuring it stays within viewport
+             const tooltipRect = tooltipElement.getBoundingClientRect();
+             let left = x + 15;
+             let top = y + 15;
+
+             // Adjust position horizontally
+             if (left + tooltipRect.width > window.innerWidth - 10) { // Add small margin
+                 left = x - tooltipRect.width - 15;
+             }
+             // Adjust position vertically
+             if (top + tooltipRect.height > window.innerHeight - 10) { // Add small margin
+                 top = y - tooltipRect.height - 15;
+             }
+             // Ensure it doesn't go off the top/left either
+             if (left < 10) left = 10;
+             if (top < 10) top = 10;
+
+
+            tooltipElement.style.left = `${left}px`;
+            tooltipElement.style.top = `${top}px`;
+         }
+
+
+        function hideTooltip() {
+            tooltipElement.style.display = 'none';
+        }
+
+        function showModal(iso) {
+            const countryInfo = countryMeshes.get(iso);
+             // Double check data is present before showing modal
+            if (!countryInfo || !countryInfo.mesh || !countryInfo.mesh.userData.currentDiscreteData) {
+                 console.error("Attempted to show modal for country with missing data:", iso);
+                 return;
+            }
+
+            const mesh = countryInfo.mesh;
+            const data = mesh.userData.currentDiscreteData;
+            const year = mesh.userData.currentDiscreteYear; // Should be a number
+            const name = mesh.userData.name;
+             // Ensure year is treated as number for comparison
+            const prevDataPoint = getPreviousDiscreteDataPoint(iso, Number(year));
+
+            document.getElementById('modal-title').textContent = `${name} (${year})`;
+            document.getElementById('modal-justification').textContent = data.justification || 'No justification provided.';
+
+            const changeInfoDiv = document.getElementById('modal-change-info');
+            if (prevDataPoint && prevDataPoint.data && typeof prevDataPoint.data.x === 'number') {
+                 document.getElementById('modal-prev-year').textContent = prevDataPoint.year;
+                 const prevCoords = `X: ${prevDataPoint.data.x.toFixed(1)}, Y: ${prevDataPoint.data.y.toFixed(1)}, Z: ${prevDataPoint.data.z.toFixed(1)}`;
+                 document.getElementById('modal-prev-coords').textContent = prevCoords;
+                 changeInfoDiv.style.display = 'block';
+            } else {
+                changeInfoDiv.style.display = 'none';
+            }
+
+            const linkContainer = document.getElementById('modal-link-container');
+            const linkElement = document.getElementById('modal-link');
+             if (data.link && data.link.trim() !== '') {
+                 linkElement.href = data.link;
+                 linkContainer.style.display = 'block';
+             } else {
+                 linkContainer.style.display = 'none';
+             }
+
+            modalElement.style.display = 'block';
+             modalContent.scrollTop = 0; // Scroll modal content to top
+        }
+
+        function hideModal() {
+            modalElement.style.display = 'none';
+        }
+
+        function plotUserPoint() {
+            const x = parseFloat(document.getElementById('userX').value);
+            const y = parseFloat(document.getElementById('userY').value);
+            const z = parseFloat(document.getElementById('userZ').value);
+
+            const geometry = new THREE.SphereGeometry(0.3, 16, 12); // Slightly smaller than countries
+            const material = new THREE.MeshStandardMaterial({
+                color: 0xffff00, // Bright yellow
+                emissive: 0x333300, // Slight glow
+                roughness: 0.4,
+                metalness: 0.1
+             });
+            const pointMesh = new THREE.Mesh(geometry, material);
+             // Map slider values to the internal axis range if needed, or use directly if sliders match
+            pointMesh.position.set(mapToAxisRange(x), mapToAxisRange(y), mapToAxisRange(z));
+             // Store necessary data, including the position for the tooltip
+            pointMesh.userData = { type: 'userPoint', interpolatedPos: pointMesh.position.clone() };
+             pointMesh.visible = true; // Ensure it's visible
+
+            userPointGroup.add(pointMesh);
+        }
+
+        function clearUserPoints() {
+             // Hide tooltip if it was showing a user point being cleared
+             if (currentlyHoveredObj && currentlyHoveredObj.userData.type === 'userPoint') {
+                 resetHoverState(); // This handles hiding tooltip and clearing hover state
+             }
+
+            // Remove all children from the group and dispose of geometries/materials
+            while (userPointGroup.children.length > 0) {
+                const child = userPointGroup.children[0];
+                userPointGroup.remove(child);
+                // Properly dispose of resources
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                     // Dispose textures if they exist on the material
+                     if (child.material.map) child.material.map.dispose();
+                     if (child.material.emissiveMap) child.material.emissiveMap.dispose();
+                     // Dispose the material itself
+                     child.material.dispose();
+                }
+            }
+        }
+
+
+        function setCameraView(preset) {
+             const dist = 25; // Distance for orthogonal views
+             const isoDist = 20; // Distance for isometric view
+
+             // Store current target to smoothly transition back if needed, or just reset
+             // const currentTarget = orbitControls.target.clone(); // Needed for animation
+             orbitControls.target.set(0, 0, 0); // Reset target to origin for preset views
+
+             let targetPosition = new THREE.Vector3();
+
+             switch (preset) {
+                 case 'iso': targetPosition.set(isoDist, isoDist, isoDist); break;
+                 case 'top': targetPosition.set(0, dist, 0.01); break; // Slight Z offset avoids gimbal lock issues
+                 case 'bottom': targetPosition.set(0, -dist, 0.01); break;
+                 case 'front': targetPosition.set(0, 0.01, dist); break; // Slight Y offset
+                 case 'back': targetPosition.set(0, 0.01, -dist); break;
+                 case 'left': targetPosition.set(-dist, 0.01, 0); break;
+                 case 'right': targetPosition.set(dist, 0.01, 0); break;
+                 default: targetPosition.copy(camera.position); // Default to current if preset unknown
+             }
+
+             // Simple approach: Snap camera instantly
+             camera.position.copy(targetPosition);
+             camera.lookAt(0, 0, 0);
+             orbitControls.update(); // Apply changes immediately
+         }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            orbitControls.update(); // Update controls (needed for damping)
+            renderer.render(scene, camera);
+        }
+
+        // --- Start Application ---
+        init();
+
+    </script>
+</body>
+</html>
