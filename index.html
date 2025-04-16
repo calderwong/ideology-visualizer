@@ -237,27 +237,28 @@
         /* Style for dimmed objects on hover */
         .dimmed { opacity: 0.15 !important; }
 
-        /* GitHub Corner Link */
+        /* GitHub Corner Link - Simplified */
         #github-link {
             position: fixed;
-            top: 0;
-            right: 0;
+            top: 10px;
+            right: 10px;
             border: 0;
-            z-index: 9999; /* Ensure it's above ALL other elements */
+            z-index: 10000; /* Ensure it's above ALL other elements */
             pointer-events: auto; /* Make it clickable */
-            background: #4CAF50; /* More visible green color matching other buttons */
+            background: #4CAF50; /* Green color matching other buttons */
             color: #fff;
             text-decoration: none;
-            padding: 8px 45px 8px 15px; /* Larger padding for better visibility */
-            font-size: 0.9em; /* Slightly larger font */
-            border-bottom-left-radius: 5px;
-            font-weight: bold; /* Make text bold */
+            padding: 8px 16px; /* Simpler padding */
+            font-size: 0.9em;
+            border-radius: 4px; /* Rounded corners like other buttons */
+            font-weight: bold;
             box-shadow: 0 2px 5px rgba(0,0,0,0.5); /* Add shadow for depth */
-            /* Triangle effect */
-            clip-path: polygon(0 0, 100% 0, 100% 100%, calc(100% - 25px) 100%, 0 calc(100% - 25px));
+            transition: all 0.2s ease;
         }
         #github-link:hover {
-            background: #45a049; /* Match other button hover states */
+            background: #45a049;
+            transform: translateY(-2px); /* Slight lift effect on hover */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5); /* Enhanced shadow on hover */
         }
     </style>
     <!-- Load Three.js -->
