@@ -14,3 +14,8 @@
     * **Execution:** Analyzed the potential use cases for an Ideology Graph Visualizer. Updated `README.md` significantly to include sections on What & Why, Use Cases, Current Features (MVP), Potential Future Features, Setup, Usage, and Contributing.
     * **Tags:** #documentation, #readme, #requirements
     * **Est. Avg. Human Dev Time:** 15 minutes
+
+4. **Prompt:** Can you add a link to the GitHub page demo into the readme?
+    * **Execution:** Added a direct link `https://calderwong.github.io/ideology-visualizer/` to the live GitHub Pages deployment at the top of `README.md`.
+    * **Tags:** #documentation, #readme, #github_pages
+    * **Est. Avg. Human Dev Time:** 2 minutes

@@ -1,5 +1,7 @@
 # Ideology Graph Visualizer
 
+**[Live Demo](https://calderwong.github.io/ideology-visualizer/)**
+
 ## What & Why
 
 This project aims to create a web-based, interactive visualization tool for exploring ideological spectrums and the relationships between different viewpoints. In a world of complex political, social, and philosophical ideas, visualizing these concepts can aid understanding, facilitate discussion, and support research.
