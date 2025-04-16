@@ -243,19 +243,21 @@
             top: 0;
             right: 0;
             border: 0;
-            z-index: 10; /* Ensure it's above most elements */
+            z-index: 9999; /* Ensure it's above ALL other elements */
             pointer-events: auto; /* Make it clickable */
-            background: #333;
+            background: #4CAF50; /* More visible green color matching other buttons */
             color: #fff;
             text-decoration: none;
-            padding: 5px 35px 5px 10px;
-            font-size: 0.8em;
+            padding: 8px 45px 8px 15px; /* Larger padding for better visibility */
+            font-size: 0.9em; /* Slightly larger font */
             border-bottom-left-radius: 5px;
-            /* Optional: Simple triangle effect */
+            font-weight: bold; /* Make text bold */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5); /* Add shadow for depth */
+            /* Triangle effect */
             clip-path: polygon(0 0, 100% 0, 100% 100%, calc(100% - 25px) 100%, 0 calc(100% - 25px));
         }
         #github-link:hover {
-            background: #555;
+            background: #45a049; /* Match other button hover states */
         }
     </style>
     <!-- Load Three.js -->
