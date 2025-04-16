@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Political Ideology Visualizer v2</title>
     <style>
         body {
@@ -237,6 +237,26 @@
         /* Style for dimmed objects on hover */
         .dimmed { opacity: 0.15 !important; }
 
+        /* GitHub Corner Link */
+        #github-link {
+            position: fixed;
+            top: 0;
+            right: 0;
+            border: 0;
+            z-index: 10; /* Ensure it's above most elements */
+            pointer-events: auto; /* Make it clickable */
+            background: #333;
+            color: #fff;
+            text-decoration: none;
+            padding: 5px 35px 5px 10px;
+            font-size: 0.8em;
+            border-bottom-left-radius: 5px;
+            /* Optional: Simple triangle effect */
+            clip-path: polygon(0 0, 100% 0, 100% 100%, calc(100% - 25px) 100%, 0 calc(100% - 25px));
+        }
+        #github-link:hover {
+            background: #555;
+        }
     </style>
     <!-- Load Three.js -->
     <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
@@ -250,6 +270,9 @@
     </script>
 </head>
 <body>
+    <!-- GitHub Link -->
+    <a id="github-link" href="https://github.com/calderwong/ideology-visualizer" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+
     <div id="canvas-container"></div>
 
     <div id="ui-overlay">
@@ -284,18 +307,18 @@
                 <h4>Plot Your Ideology</h4>
                 <div class="slider-group">
                      <div class="slider-label"><span>X: Communist (-)</span><span>Fascist (+)</span></div>
-                     <input type="range" id="userX" min="-10" max="10" value="0" step="0.1">
+                     <input type="range" id="userX" name="userX" min="-10" max="10" value="0" step="0.1" aria-label="X-axis: Communist to Fascist">
                      <div class="slider-label"><span>Value:</span><span class="slider-value" id="userXValue">0.0</span></div>
                 </div>
                  <div class="slider-group">
-                    <div class="slider-label"><span>Y: Planned (-)</span><span>Free Mkt (+)</span></div>
-                    <input type="range" id="userY" min="-10" max="10" value="0" step="0.1">
-                    <div class="slider-label"><span>Value:</span><span class="slider-value" id="userYValue">0.0</span></div>
+                     <div class="slider-label"><span>Y: Anarchist (-)</span><span>Authoritarian (+)</span></div>
+                     <input type="range" id="userY" name="userY" min="-10" max="10" value="0" step="0.1" aria-label="Y-axis: Anarchist to Authoritarian">
+                     <div class="slider-label"><span>Value:</span><span class="slider-value" id="userYValue">0.0</span></div>
                 </div>
                  <div class="slider-group">
-                     <div class="slider-label"><span>Z: Dictator (-)</span><span>Democracy (+)</span></div>
-                    <input type="range" id="userZ" min="-10" max="10" value="0" step="0.1">
-                    <div class="slider-label"><span>Value:</span><span class="slider-value" id="userZValue">0.0</span></div>
+                     <div class="slider-label"><span>Z: Globalist (-)</span><span>Nationalist (+)</span></div>
+                     <input type="range" id="userZ" name="userZ" min="-10" max="10" value="0" step="0.1" aria-label="Z-axis: Globalist to Nationalist">
+                     <div class="slider-label"><span>Value:</span><span class="slider-value" id="userZValue">0.0</span></div>
                 </div>
                 <button id="plotUserPointBtn">Plot My Point</button>
                 <button id="clearUserPointsBtn" class="danger">Clear My Points</button>
@@ -426,8 +449,8 @@
             },
              "id": { // Indonesia
                 1950: { x: -2, y: -4, z: 4, justification: "Early independence, unstable parliamentary democracy ('Guided Democracy' leanings), nationalist.", link: "https://en.wikipedia.org/wiki/History_of_Indonesia_(1945%E2%80%931949)" },
-                1970: { x: 5, y: -3, z: -7, justification: "Suharto's 'New Order' military-backed authoritarian regime, anti-communist, state-led development.", link: "https://en.wikipedia.org/wiki/New_Order_(Indonesia)" },
-                1985: { x: 5.5, y: -1, z: -7.5, justification: "Height of New Order repression, crony capitalism developing alongside state control.", link: "https://en.wikipedia.org/wiki/New_Order_(Indonesia)" },
+                1970: { x: 5, y: -3, z: -7, justification: "Post-Biafran War military rule, oil boom begins, state control over resources.", link: "https://en.wikipedia.org/wiki/History_of_Indonesia#Military_rule" },
+                1985: { x: 5.5, y: -2, z: -7.5, justification: "Height of New Order repression, crony capitalism developing alongside state control.", link: "https://en.wikipedia.org/wiki/New_Order_(Indonesia)" },
                 2000: { x: 1, y: 2, z: 6, justification: "Post-Suharto 'Reformasi' transition to democracy, decentralization.", link: "https://en.wikipedia.org/wiki/Post-Suharto_era_in_Indonesia" },
                 2025: { x: 1.5, y: 4, z: 6.5, justification: "Consolidating democracy (flawed), significant market economy, regional influence.", link: "https://en.wikipedia.org/wiki/Politics_of_Indonesia" }
             },
@@ -1451,7 +1474,7 @@
              // const currentTarget = orbitControls.target.clone(); // Needed for animation
              orbitControls.target.set(0, 0, 0); // Reset target to origin for preset views
 
-             let targetPosition = new THREE.Vector3();
+            let targetPosition = new THREE.Vector3();
 
              switch (preset) {
                  case 'iso': targetPosition.set(isoDist, isoDist, isoDist); break;

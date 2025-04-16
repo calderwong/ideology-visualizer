@@ -19,3 +19,8 @@
     * **Execution:** Added a direct link `https://calderwong.github.io/ideology-visualizer/` to the live GitHub Pages deployment at the top of `README.md`.
     * **Tags:** #documentation, #readme, #github_pages
     * **Est. Avg. Human Dev Time:** 2 minutes
+
+5. **Prompt:** Can you add a link back to the GitHub repository (using the github badge) into the front end?
+    * **Execution:** Added a fixed-position corner link (`#github-link`) to `index.html` pointing to the GitHub repo. Added corresponding CSS in the `<style>` block. Also fixed accessibility lint issues: removed `user-scalable=no` from viewport meta tag and added `aria-label` attributes to the user input range sliders.
+    * **Tags:** #feature, #ui, #accessibility, #lintfix
+    * **Est. Avg. Human Dev Time:** 10 minutes
